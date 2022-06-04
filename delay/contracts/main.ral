@@ -1,0 +1,36 @@
+TxContract Delay(
+  cIdentifier: ByteVec,
+  cFrom: Address,
+  cTo: Address,
+  cUsesMediator: Bool,
+  cMediator: Address,
+  cLockUntil: U256,
+  mut cFromAgreesToCancel: Bool,
+  mut cToAgreesToCancel: Bool,
+  mut cMediatorAgreesToCancel: Bool
+) {
+  pub fn collect() -> () {
+    assert!(verifyAbsoluteLockTime!(cLockUntil))
+    destroySelf!(cTo)
+  }
+
+  pub fn cancelRequest() -> () {
+    let caller = callerAddress!()
+    if caller == cFrom     { cFromAgreesToCancel     = true } else { }
+    if caller == cTo       { cToAgreesToCancel       = true } else { }
+    if caller == cMediator { cMediatorAgreesToCancel = true } else { }
+  }
+
+  pub fn cancelRevoke() -> () {
+    let caller = callerAddress!()
+    if caller == cFrom     { cFromAgreesToCancel     = false } else { }
+    if caller == cTo       { cToAgreesToCancel       = false } else { }
+    if caller == cMediator { cMediatorAgreesToCancel = false } else { }
+  }
+
+  pub fn cancel() -> () {
+    assert!(cFromAgreesToCancel && cToAgreesToCancel)
+    if cUsesMediator { assert!(cMediatorAgreesToCancel) } else { }
+    destroySelf!(cFrom)
+  }
+}

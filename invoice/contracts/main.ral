@@ -1,0 +1,53 @@
+TxContract Invoice(
+  payTo: Address,
+  paymentAmount: U256,
+  mut paid: Bool,
+  mut paidAt: U256,
+  receiptOwner: Address,
+  identifier: ByteVec
+) {
+  @use(approvedAssets = true, contractAssets = true)
+  pub pay() -> () {
+    // Cannot handle multiple transactions simultaneously paying.
+    assert!(txCallerSize!() == 1)
+
+    // If it's already paid then do nothing.
+    assert!(paid === false)
+    
+    let     amountApprovedToReceive = alphRemaining!(callerAddress!())
+    let     amountPaid              = alphRemaining!(selfAddress!())
+    let     paymentRemaining        = paymentAmount - amountPaid
+    let mut amountToTransferToSelf  = 0
+
+    if amountApprovedToReceive <= paymentRemaining {
+      amountToTransferToSelf = amountApprovedToReceive
+      transferAlphToSelf(callerAddress!(), amountToTransferToSelf)
+    } else {
+      amountToTransferToSelf = paymentRemaining
+      transferAlphToSelf(callerAddress!(), amountToTransferToSelf)
+    }
+
+    let paymentRemaining = paymentAmount - (amountPaid + amountToTransferToSelf)
+    let isExactlyPaid    = paymentRemaining == 0
+
+    if isExactlyPaid {
+      approveAlph!(selfAddress!(), paymentAmount) 
+      transferAlphFromSelf!(payTo, paymentAmount)
+      paidAt = blockTimeStamp!()
+      paid = true
+    } else { }
+  }
+
+  pub fn destroy() {
+    // Only the payment receiver can destroy the invoice.
+    // The payment receiver may be a contract or user.
+    assert!(callerAddress!() == payTo)
+
+    // If it's already paid then we must keep the proof
+    assert!(paid == false)
+
+    // Return the contract balance to the payment receiver.
+    // There should only be the initial contract deposit that remains.
+    destroySelf!(payTo)
+  }
+}
