@@ -1,0 +1,14 @@
+TxContract Letter(
+  mut cMessage: ByteVec,
+  mut cTo: Address,
+  mut cFrom: Address
+) {
+  pub fn read() -> ByteVec {
+    if callerAddress!() == cTo {
+      destroySelf!(cFrom)
+      return cMessage
+    } else {
+      return #00
+    }
+  }
+}
