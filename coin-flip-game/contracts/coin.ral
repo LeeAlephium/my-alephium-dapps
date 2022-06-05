@@ -1,0 +1,19 @@
+import "flip.ral"
+
+TxContract Coin(
+  cFlipContractId: ByteVec
+) {
+  pub fn flip() -> I256 {
+    transferAlphToSelf(callerAddress!(), 1000000000000000000)
+    approveAlph!(selfAddress!(), 1000000000000000000)
+    let contractIdAsRandomness = copyCreateContract!(
+      cFlipContractId,
+      encodeToByteVec!()
+    )
+
+    let n = u256From32Byte!(byteVecSlice!(contractIdAsRandomness, 0, 32)) % 100
+    if n <= 99 && n > 50 { return  1 } else { } // Heads
+    if n == 50           { return  0 } else { } // Edge
+    if n <  50           { return -1 } else { } // Tails
+  }
+}

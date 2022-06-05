@@ -1,0 +1,23 @@
+import "coin.ral"
+
+TxContract CoinFlipGame(
+  cCoinContractId: ByteVec,
+  cFlipContractId: ByteVec
+) {
+  pub fn play(guess: I256) -> () {
+    assert!(guess == -1 || guess == 0 || guess == 1)
+
+    // This is an idiom to pass on the contract creation amount to the next
+    // contract to create more contracts!
+    transferAlphToSelf(callerAddress!(), 1000000000000000000)
+    approveAlph!(selfAddress!(), 1000000000000000000)
+    let id = copyCreateContract!(
+      cCoinContractId,
+      encodeToByteVec!(cFlipContractId)
+    )
+
+    let coin   = Coin(id)
+    let result = coin.flip()
+    if result == guess { destroySelf!(callerAddress!()) } else { }
+  }
+}

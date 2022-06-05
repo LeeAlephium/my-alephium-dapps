@@ -1,11 +1,14 @@
 import "letter.ral"
 
-TxContract PostOffice(cContractIdForLetter: ByteVec) {
+// Requires Letter to be deployed first so it can be duplicated, and then
+// pass its contract id to PostOffice.
+TxContract PostOffice(cLetterContractId: ByteVec) {
   pub fn send(message: ByteVec, to: Address) -> () {
-    approveAlph!(txCaller!(0), 1000000000000000000)
+    // 1 alph is required to create a contract
+    approveAlph!(callerAddress!(), 1000000000000000000)
     copyCreateContract!(
-      cContractIdForLetter,
-      encodeToByteVec!(message, to, callerAddress!())
+      cLetterContractId,
+      encodeToByteVec!(callerAddress!(), to, message)
     )
   }
 }

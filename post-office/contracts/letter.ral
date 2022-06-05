@@ -1,14 +1,13 @@
+// A common pattern is to simply read the contract's state fields, since
+// it's not possible to force users to call appropriate methods instead
+// (it's impossible to hide the data).
 TxContract Letter(
-  mut cMessage: ByteVec,
+  mut cFrom: Address,
   mut cTo: Address,
-  mut cFrom: Address
+  mut cMessage: ByteVec
 ) {
-  pub fn read() -> ByteVec {
-    if callerAddress!() == cTo {
-      destroySelf!(cFrom)
-      return cMessage
-    } else {
-      return #00
-    }
+  pub fn destroy() -> () {
+    assert!(callerAddress!() == cTo)
+    destroySelf!(cFrom)
   }
 }
