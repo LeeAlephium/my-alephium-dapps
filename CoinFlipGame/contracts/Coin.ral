@@ -1,4 +1,4 @@
-import "flip.ral"
+import "Flip.ral"
 
 TxContract Coin(
   cFlipContractId: ByteVec

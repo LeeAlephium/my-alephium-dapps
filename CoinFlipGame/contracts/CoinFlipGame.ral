@@ -1,4 +1,4 @@
-import "coin.ral"
+import "Coin.ral"
 
 TxContract CoinFlipGame(
   cCoinContractId: ByteVec,

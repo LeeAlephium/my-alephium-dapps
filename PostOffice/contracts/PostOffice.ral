@@ -1,4 +1,4 @@
-import "letter.ral"
+import "Letter.ral"
 
 // Requires Letter to be deployed first so it can be duplicated, and then
 // pass its contract id to PostOffice.
