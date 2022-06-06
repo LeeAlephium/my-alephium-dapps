@@ -1,0 +1,42 @@
+TxContract NeedSignatures(
+  minimumSignaturesNeeded: U256,
+  trustedSigners: [Address; 10],
+  mut signersLeftToSign: [Address; 10],
+  mut signatureCount: U256,
+  mut addressToSendFunds: Address,
+  mut amountToSend: U256) {
+
+  pub fn setTransferParameters(_addressToSendFunds: Address, _amountToSend: U256) -> () {
+    assert(calledByTrustedSigner())
+    assert(I have enough funds inside of self() ?)
+    signatureCount = 0 // Prepare for next attempt to sign, changing approved target and amounts requires signatures to start over
+    signersLeftToSign = trustedSigners
+    addressToSendFunds = _addressToSendFunds
+    amountToSend = _amountToSend
+  }
+
+  fn calledByTrustedSigner() -> Boolean {
+    let mut trustedSignerFound: Boolean = false
+    loop(0, 9, 1, trustedSignerFound = (trustedSigners[?] == callerAddress!() || trustedSignerFound))
+    return trustedSignerFound
+  }
+
+  @use(approvedAssets = false, contractAssets = true)
+  pub fn sign() -> () {
+    assert(I have enough funds inside of self() ?)
+    if signatureCount == 0 { signersLeftToSign = trustedSigners } // duplicative but protective against edge cases
+    loop(0, 9, 1, incrementForTrustedSigner(?))
+    if signatureCount == minimumNeeded {
+      approveAlph!(selfAddress!(), amountToSend)
+      transferAlphFromSelf!(addressToSendFunds, amountToSend)
+      setTransferParameters(selfAddress!(), 0) // Reset to meaningless junk until another caller defines a target
+    }
+  }
+
+  fn incrementForTrustedSigner(signerIndex: U256) -> () {
+    if trustedSigners[signerIndex] == callerAddress!() {
+      signatureCount++
+      trustedSigners[signerIndex] = selfAddress!() // To stop same address from being an acceptable signature again
+    }
+  }
+}
