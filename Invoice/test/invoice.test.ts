@@ -43,6 +43,9 @@ describe('Invoice contract', () => {
     const makePaymentScript = await Script.fromSource(provider, 'make_payment.ral')
     const params2 = {
       signerAddress: wallet.address,
+      attoAlphAmount: 1e18 * 2,
+      gasAmount: 890,
+      gasPrice: 1e10,
       initialFields: {
         invoiceContractId: deployContract.contractId,
         payFrom: wallet.address,
@@ -50,10 +53,8 @@ describe('Invoice contract', () => {
       }
     }
     const deployScript = await makePaymentScript.paramsForDeployment(params2)
-    await wallet.signer.signExecuteScriptTx(deployScript)
-
-    const state = await invoice.fetchState(provider, deployContract.contractAddress, 0)
-    console.log(state)
+    const a = await wallet.signer.signExecuteScriptTx(deployScript)
+    console.log(a)
   })
   it('allow payTo to destroy', () => {
   })
