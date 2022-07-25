@@ -1,50 +1,51 @@
-TxContract Invoice(
+Contract Invoice(
   payTo: Address,
-  paymentAmount: U256,
+  paymentAttoAlphAmount: U256,
+  paymentDueAt: U256,
   mut paid: Bool,
   mut paidAt: U256,
   receiptOwner: Address,
   identifier: ByteVec
 ) {
-  @use(approvedAssets = true, contractAssets = true)
-  pub pay() -> () {
+  @using(preapprovedAssets = true, assetsInContract = true)
+  pub fn pay() -> () {
     // Cannot handle multiple transactions simultaneously paying.
-    assert!(txCallerSize!() == 1)
+    assert!(txInputsSize!() == 1, 0)
 
     // If it's already paid then do nothing.
-    assert!(paid === false)
+    assert!(paid == false, 0)
     
     let     amountApprovedToReceive = alphRemaining!(callerAddress!())
     let     amountPaid              = alphRemaining!(selfAddress!())
-    let     paymentRemaining        = paymentAmount - amountPaid
+    let     paymentRemaining        = paymentAttoAlphAmount - amountPaid
     let mut amountToTransferToSelf  = 0
 
-    if amountApprovedToReceive <= paymentRemaining {
+    if (amountApprovedToReceive <= paymentRemaining) {
       amountToTransferToSelf = amountApprovedToReceive
-      transferAlphToSelf(callerAddress!(), amountToTransferToSelf)
+      transferAlphToSelf!(callerAddress!(), amountToTransferToSelf)
     } else {
       amountToTransferToSelf = paymentRemaining
-      transferAlphToSelf(callerAddress!(), amountToTransferToSelf)
+      transferAlphToSelf!(callerAddress!(), amountToTransferToSelf)
     }
 
-    let paymentRemaining = paymentAmount - (amountPaid + amountToTransferToSelf)
-    let isExactlyPaid    = paymentRemaining == 0
+    let paymentRemainingAfterPaying = paymentAttoAlphAmount - (amountPaid + amountToTransferToSelf)
+    let isExactlyPaid               = paymentRemainingAfterPaying == 0
 
-    if isExactlyPaid {
-      approveAlph!(selfAddress!(), paymentAmount) 
-      transferAlphFromSelf!(payTo, paymentAmount)
+    if (isExactlyPaid) {
+      approveAlph!(selfAddress!(), paymentAttoAlphAmount) 
+      transferAlphFromSelf!(payTo, paymentAttoAlphAmount)
       paidAt = blockTimeStamp!()
       paid = true
     } else { }
   }
 
-  pub fn destroy() {
+  pub fn destroy() -> () {
     // Only the payment receiver can destroy the invoice.
     // The payment receiver may be a contract or user.
-    assert!(callerAddress!() == payTo)
+    assert!(callerAddress!() == payTo, 0)
 
     // If it's already paid then we must keep the proof
-    assert!(paid == false)
+    assert!(paid == false, 0)
 
     // Return the contract balance to the payment receiver.
     // There should only be the initial contract deposit that remains.

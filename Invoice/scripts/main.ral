@@ -1,0 +1,4 @@
+Script (invoiceContractId: ByteVec, payFrom: Address, attoAmount: U256) {
+  let invoiceContract = Invoice(invoiceContractId)
+  invoiceContract.pay{ @payFrom -> attoAmount }() 
+}
