@@ -10,10 +10,22 @@ const accessWallet = async (provider) => {
   }
 }
 
+const ALPH = 1000000000000000000
+const initializeContractScriptData = (filePath: string) => ({
+    filePath,
+    instance: null,
+    params: null,
+    unsignedTxObj: null
+})
+
 describe('Invoice contract', () => {
-  let invoice
   let provider
   let wallet
+  let contract = initializeContractScriptData('invoice.ral')
+  let script = {
+    pay: initializeContractScriptData('invoice_pay.ral'),
+    destroy: initializeContractScriptData('invoice_destroy.ral'),
+  }
 
   beforeAll(async () => {
     provider = new NodeProvider('http://127.0.0.1:22973')
@@ -21,47 +33,73 @@ describe('Invoice contract', () => {
   })
 
   beforeEach(async () => {
-    invoice = await Contract.fromSource(provider, 'invoice.ral')
-  })
-
-  it('subtract amount leftover', async () => {
-    const params = {
+    contract.params  = {
       initialFields: {
         payTo: wallet.address,
-        paymentAttoAlphAmount: 1e18 * 5,
+        paymentAttoAlphAmount: BigInt(3 * ALPH),
         paymentDueAt: new Date().getTime(),
         paid: false,
         paidAt: 0,
         receiptOwner: wallet.address,
-        identifier: '7777',
+        nonce: 'eeeeee' // Same nonce for consistence in tests
       },
       initialTokenAmounts: []
     }
-    const deployContract = await invoice.transactionForDeployment(wallet.signer, params)
-    const submitResult = await wallet.signer.submitTransaction(deployContract.unsignedTx, deployContract.txId)
-    //const state = await invoice.fetchState(provider, deployContract.contractAddress, 0)
-    const makePaymentScript = await Script.fromSource(provider, 'make_payment.ral')
-    const params2 = {
+
+    contract.instance = await Contract.fromSource(provider, contract.filePath)
+    contract.unsignedTxObj = await contract.instance.transactionForDeployment(wallet.signer, contract.params)
+    await wallet.signer.submitTransaction(contract.unsignedTxObj.unsignedTx, contract.unsignedTxObj.txId)
+
+    script.pay.instance = await Script.fromSource(provider, script.pay.filePath)
+  })
+
+  it('add the proper amount when under-payment occurs several times', async () => {
+    script.pay.params = {
       signerAddress: wallet.address,
-      attoAlphAmount: 1e18 * 2,
-      gasAmount: 890,
-      gasPrice: 1e10,
+      attoAlphAmount: BigInt(1 * ALPH),
       initialFields: {
-        invoiceContractId: deployContract.contractId,
+        invoiceContractId: contract.unsignedTxObj.contractId,
         payFrom: wallet.address,
-        attoAmount: 1e18 * 2
+        attoAlphAmount: BigInt(1 * ALPH)
       }
     }
-    const deployScript = await makePaymentScript.paramsForDeployment(params2)
-    const a = await wallet.signer.signExecuteScriptTx(deployScript)
-    console.log(a)
+    script.pay.unsignedTxObj = await script.pay.instance.paramsForDeployment(script.pay.params)
+
+    let rounds = BigInt(contract.params.initialFields.paymentAttoAlphAmount / script.pay.params.initialFields.attoAlphAmount)
+    while (rounds > BigInt(0)) {
+      await wallet.signer.signExecuteScriptTx(script.pay.unsignedTxObj)
+      rounds -= BigInt(1)
+    }
+
+    // Make one more payment to overpay
+    try {
+      await wallet.signer.signExecuteScriptTx(script.pay.unsignedTxObj)
+    } catch (e) {
+      expect(e.error.detail.indexOf('AssertionFailedWithErrorCode')).toBeGreaterThanOrEqual(0)
+    }
+
+    const state = await contract.instance.fetchState(provider, contract.unsignedTxObj.contractAddress, 0)
+    expect(state.asset.alphAmount).toBe(contract.params.initialFields.paymentAttoAlphAmount + BigInt(1 * ALPH))
+    expect(state.fields.paid).toBe(true)
   })
-  it('allow payTo to destroy', () => {
-  })
-  it('return any leftover to receipt owner', () => {
-  })
-  it('should be paid when paidAmount is satisfied', () => {
-  })
-  it('not be destroyed when paid', () => {
+
+  it('stop a single payee from over-payment', async () => {
+    const attoAlphAmount = contract.params.initialFields.paymentAttoAlphAmount + BigInt(1 * ALPH)
+
+    script.pay.params = {
+      signerAddress: wallet.address,
+      attoAlphAmount,
+      initialFields: {
+        invoiceContractId: contract.unsignedTxObj.contractId,
+        payFrom: wallet.address,
+        attoAlphAmount,
+      }
+    }
+    script.pay.unsignedTxObj= await script.pay.instance.paramsForDeployment(script.pay.params)
+    await wallet.signer.signExecuteScriptTx(script.pay.unsignedTxObj)
+    const state = await contract.instance.fetchState(provider, contract.unsignedTxObj.contractAddress, 0)
+
+    // Plus 1 ALPH to account for the "storage deposit"
+    expect(state.asset.alphAmount).toBe(contract.params.initialFields.paymentAttoAlphAmount + BigInt(1 * ALPH))
   })
 })

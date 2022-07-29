@@ -1,0 +1,6 @@
+Interface InvoiceInterface {
+  @using(preapprovedAssets = true, assetsInContract = true)
+  pub fn pay() -> (U256)
+
+  pub fn destroy() -> ()
+}

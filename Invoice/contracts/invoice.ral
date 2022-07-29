@@ -1,3 +1,5 @@
+import "invoice_interface.ral"
+
 Contract Invoice(
   payTo: Address,
   paymentAttoAlphAmount: U256,
@@ -5,18 +7,21 @@ Contract Invoice(
   mut paid: Bool,
   mut paidAt: U256,
   receiptOwner: Address,
-  identifier: ByteVec
-) {
+  nonce: ByteVec
+) implements InvoiceInterface {
   @using(preapprovedAssets = true, assetsInContract = true)
   pub fn pay() -> (U256) {
     // Cannot handle multiple transactions simultaneously paying.
-    assert!(txInputsSize!() == 1, 0)
+    //assert!(txInputsSize!() == 1, 0)
 
     // If it's already paid then do nothing.
     assert!(paid == false, 0)
     
     let     amountApprovedToReceive = alphRemaining!(callerAddress!())
-    let     amountPaid              = alphRemaining!(selfAddress!())
+
+    // Needs sub 1 alph since that's the "storage deposit" to prevent network spam
+    let     amountPaid              = alphRemaining!(selfAddress!()) - 1 alph
+
     let     paymentRemaining        = paymentAttoAlphAmount - amountPaid
     let mut amountToTransferToSelf  = 0
 
@@ -32,14 +37,18 @@ Contract Invoice(
     let isExactlyPaid               = paymentRemainingAfterPaying == 0
 
     if (isExactlyPaid) {
-      approveAlph!(selfAddress!(), paymentAttoAlphAmount) 
-      transferAlphFromSelf!(payTo, paymentAttoAlphAmount)
       paidAt = blockTimeStamp!()
       paid = true
       return 0
     }
 
     return paymentRemainingAfterPaying
+  }
+
+  pub fn collect() -> () {
+    assert!(paid == true, 0)
+    approveAlph!(selfAddress!(), paymentAttoAlphAmount) 
+    transferAlphFromSelf!(payTo, paymentAttoAlphAmount)
   }
 
   pub fn destroy() -> () {

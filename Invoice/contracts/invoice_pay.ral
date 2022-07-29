@@ -1,0 +1,6 @@
+import "invoice.ral"
+
+TxScript Main(invoiceContractId: ByteVec, payFrom: Address, attoAlphAmount: U256) {
+  let invoiceContract = InvoiceInterface(invoiceContractId)
+  invoiceContract.pay{ payFrom -> attoAlphAmount }() 
+}

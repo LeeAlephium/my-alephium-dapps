@@ -1,0 +1,6 @@
+import "invoice.ral"
+
+TxScript Main(invoiceContractId: ByteVec) {
+  let invoiceContract = InvoiceInterface(invoiceContractId)
+  invoiceContract.destroy()
+}
